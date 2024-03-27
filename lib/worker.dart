@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:dio/dio.dart';
 
+/// A class representing a worker that performs API requests and handles responses.
 class Worker {
   late SendPort _mainThreadSendPort;
   late ReceivePort _workerReceivePort;
@@ -13,7 +14,9 @@ class Worker {
   bool _isPhoneRinging = false;
   Completer<void> _apiCallCompleter = Completer<void>();
 
+  // API URL for fetching random numbers.
   static const String _apiUrl = "https://csrng.net/csrng/csrng.php?min=0&max=1";
+  // Interval for API requests.
   static const Duration _apiRequestInterval = Duration(seconds: 5);
 
   static final _dio = Dio(
@@ -23,23 +26,28 @@ class Worker {
     ),
   );
 
+  /// Constructor to initialize the worker with communication ports.
   Worker(this._workerReceivePort, this._mainThreadSendPort) {
     _responseController = StreamController<dynamic>.broadcast();
     _workerSendPort = _workerReceivePort.sendPort;
   }
 
+  /// Initializes the worker and starts API requests.
   Future<void> initialize() async {
     _mainThreadSendPort.send('initialize');
     _startApiRequests();
   }
 
+  /// Stream of API response data.
   Stream<dynamic> get responseStream => _responseController.stream;
 
+  /// Starts periodic API requests.
   void _startApiRequests() {
     _isolateRunning = true;
     _apiRequestTimer = Timer.periodic(_apiRequestInterval, _requestApiData);
   }
 
+  /// Requests data from the API at regular intervals.
   Future<void> _requestApiData(Timer timer) async {
     try {
       _apiCallCompleter = Completer<void>();
@@ -66,6 +74,7 @@ class Worker {
     }
   }
 
+  /// Simulates phone ringing by printing messages.
   Future<void> _ringPhone() async {
     for (var i = 1; i <= 3; i++) {
       await Future.delayed(const Duration(seconds: 1), () {
@@ -74,11 +83,13 @@ class Worker {
     }
   }
 
+  /// Stops periodic API requests.
   void _stopApiRequests() {
     _isolateRunning = false;
     _apiRequestTimer?.cancel();
   }
 
+  /// Initializes the worker isolate and communication ports.
   static Future<Worker> init() async {
     final receivePort = ReceivePort();
     Isolate.spawn(_startIsolate, receivePort.sendPort);
@@ -86,6 +97,7 @@ class Worker {
     return Worker(receivePort, mainThreadSendPort);
   }
 
+  /// Starts the worker isolate and initializes worker instance.
   static void _startIsolate(SendPort mainThreadSendPort) {
     final workerPort = ReceivePort();
     mainThreadSendPort.send(workerPort.sendPort);
@@ -103,6 +115,7 @@ class Worker {
     });
   }
 
+  /// Closes the worker and cleans up resources.
   void close() {
     if (_isolateRunning) {
       _workerSendPort.send('shutdown');
@@ -110,6 +123,7 @@ class Worker {
     }
   }
 
+  /// Fetches a random number from the API.
   static Future<int> _getNumber() async {
     Response response = await _dio.get(_apiUrl);
     print("API Response: ${response.data}");
